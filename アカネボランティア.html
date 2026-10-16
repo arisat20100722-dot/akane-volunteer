@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>あかねボランティア 在庫・買い物管理アプリ</title>
+  <style>
+    :root {
+      --primary-color: #007bff;
+      --success-color: #28a745;
+      --warning-color: #dc3545;
+      --bg-color: #f4f6f8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-color); padding: 15px; color: #333; }
+    
+    header {
+      max-width: 1100px;
+      margin: 0 auto 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fff;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .container { grid-template-columns: 1fr; }
+    }
+
+    h1 { font-size: 20px; }
+    h2 { font-size: 18px; margin-bottom: 12px; }
+
+    /* 在庫カード一覧 */
+    .inventory-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .card-img-wrapper {
+      height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card img {
+      max-width: 100%;
+      max-height: 100px;
+      object-fit: contain;
+    }
+
+    .item-name { font-weight: bold; font-size: 16px; margin: 8px 0 4px; }
+    
+    .item-meta {
+      font-size: 12px;
+      color: #666;
+      background: #f8f9fa;
+      padding: 6px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+
+    .counter {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: auto;
+    }
+
+    .btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: var(--primary-color);
+      color: #fff;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .btn:active { transform: scale(0.95); }
+    .count { font-size: 18px; font-weight: bold; }
+
+    /* 警告表示（補充水準以下） */
+    .card.need-restock {
+      border: 2px solid var(--warning-color);
+    }
+    .restock-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--warning-color);
+      color: white;
+      font-size: 10px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    /* 買い物リスト */
+    .shopping-panel {
+      background: #fff;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      height: fit-content;
+    }
+
+    .shopping-list { list-style: none; }
+
+    .shopping-item {
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .shopping-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .target-price {
+      font-size: 12px;
+      color: #28a745;
+      font-weight: bold;
+    }
+
+    .buy-btn {
+      padding: 6px 12px;
+      background: var(--success-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      margin-top: 6px;
+      width: 100%;
+    }
+
+    /* 管理用パネル（商品追加フォーム） */
+    .admin-panel {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .form-grid input {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .add-btn {
+      grid-column: 1 / -1;
+      padding: 10px;
+      background: #333;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: #999;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>あかねボランティア 在庫管理</h1>
+    <span id="sync-status" style="font-size: 12px; color: #666;">状態: ローカル同期中</span>
+  </header>
+
+  <div class="container">
+    <!-- 在庫一覧エリア -->
+    <div>
+      <h2>調味料・資材一覧</h2>
+      <div class="inventory-grid" id="inventoryGrid"></div>
+
+      <!-- 商品追加フォーム（画面上から管理） -->
+      <div class="admin-panel">
+        <h2>＋ 新しい商品を登録</h2>
+        <form id="addItemForm" onsubmit="addNewItem(event)" class="form-grid">
+          <input type="text" id="newName" placeholder="商品名 (例: しょうゆ)" required>
+          <input type="number" id="newCount" placeholder="初期在庫数" value="1" min="0" required>
+          <input type="number" id="newThreshold" placeholder="補充水準 (例: 1)" value="1" min="0" required>
+          <input type="number" id="newTargetPrice" placeholder="目安価格 (例: 298)" min="0">
+          <input type="text" id="newImg" placeholder="画像ファイル名 (例: shoyu.png)">
+          <button type="submit" class="add-btn">商品をリストに追加</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 買い物リストエリア -->
+    <div>
+      <div class="shopping-panel">
+        <h2>🛒 買い物リスト</h2>
+        <ul class="shopping-list" id="shoppingList"></ul>
+        <p id="emptyMsg" style="color: #888; font-size: 14px; text-align: center; margin-top: 10px;">買うものはありません</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 初期データ構造（補充水準 threshold と 目安価格 targetPrice を追加）
+    let items = JSON.parse(localStorage.getItem('akane_stock_data')) || [
+      { id: '1', name: 'サラダ油', img: 'saladoil.png', count: 1, threshold: 1, targetPrice: 350 },
+      { id: '2', name: '料理酒', img: 'sake.png', count: 1, threshold: 1, targetPrice: 198 },
+      { id: '3', name: 'マヨネーズ', img: 'kewpie.png', count: 1, threshold: 1, targetPrice: 248 },
+      { id: '4', name: '食塩', img: 'salt.png', count: 1, threshold: 1, targetPrice: 108 },
+      { id: '5', name: '本みりん', img: 'mirin.png', count: 1, threshold: 1, targetPrice: 228 },
+      { id: '6', name: '上白糖', img: 'suger.png', count: 1, threshold: 1, targetPrice: 178 },
+      { id: '7', name: 'ケチャップ', img: 'ketchup.png', count: 1, threshold: 1, targetPrice: 188 },
+      { id: '8', name: 'しょうゆ', img: 'shoyu.png', count: 1, threshold: 1, targetPrice: 298 }
+    ];
+
+    // データの保存（将来的にここを Firebase の更新に書き換えます）
+    function saveData() {
+      localStorage.setItem('akane_stock_data', JSON.stringify(items));
+      render();
+    }
+
+    // 画面描写処理
+    function render() {
+      const grid = document.getElementById('inventoryGrid');
+      const list = document.getElementById('shoppingList');
+      const emptyMsg = document.getElementById('emptyMsg');
+
+      grid.innerHTML = '';
+      list.innerHTML = '';
+
+      let shoppingCount = 0;
+
+      items.forEach((item, index) => {
+        const isNeedRestock = item.count <= item.threshold;
+
+        // 在庫カードの作成
+        const card = document.createElement('div');
+        card.className = `card ${isNeedRestock ? 'need-restock' : ''}`;
+        card.innerHTML = `
+          ${isNeedRestock ? '<span class="restock-badge">補充対象</span>' : ''}
+          <div class="card-img-wrapper">
+            <img src="${item.img || 'https://via.placeholder.com/100?text=No+Image'}" alt="${item.name}">
+          </div>
+          <div class="item-name">${item.name}</div>
+          <div class="item-meta">
+            補充水準: ${item.threshold}以下<br>
+            目安価格: ${item.targetPrice ? item.targetPrice + '円以下' : '未設定'}
+          </div>
+          <div class="counter">
+            <button class="btn" onclick="updateCount(${index}, -1)">-</button>
+            <span class="count">${item.count}</span>
+            <button class="btn" onclick="updateCount(${index}, 1)">+</button>
+          </div>
+          <button class="delete-btn" onclick="deleteItem(${index})">削除</button>
+        `;
+        grid.appendChild(card);
+
+        // 補充水準以下なら自動で買い物リストに追加
+        if (isNeedRestock) {
+          shoppingCount++;
+          const li = document.createElement('li');
+          li.className = 'shopping-item';
+          li.innerHTML = `
+            <div class="shopping-item-header">
+              <strong>${item.name}</strong>
+              <span class="target-price">${item.targetPrice ? item.targetPrice + '円以下で買い' : ''}</span>
+            </div>
+            <div>現在庫: ${item.count} (水準: ${item.threshold})</div>
+            <button class="buy-btn" onclick="updateCount(${index}, 1)">購入完了 (＋1)</button>
+          `;
+          list.appendChild(li);
+        }
+      });
+
+      emptyMsg.style.display = shoppingCount === 0 ? 'block' : 'none';
+    }
+
+    // 在庫数の増減
+    function updateCount(index, delta) {
+      items[index].count = Math.max(0, items[index].count + delta);
+      saveData();
+    }
+
+    // 画面上からの新規商品追加
+    function addNewItem(e) {
+      e.preventDefault();
+      const newItem = {
+        id: Date.now().toString(),
+        name: document.getElementById('newName').value,
+        count: parseInt(document.getElementById('newCount').value, 10),
+        threshold: parseInt(document.getElementById('newThreshold').value, 10),
+        targetPrice: document.getElementById('newTargetPrice').value ? parseInt(document.getElementById('newTargetPrice').value, 10) : null,
+        img: document.getElementById('newImg').value || ''
+      };
+      items.push(newItem);
+      saveData();
+      document.getElementById('addItemForm').reset();
+    }
+
+    // 商品の削除
+    function deleteItem(index) {
+      if (confirm(`${items[index].name} を削除してもよろしいですか？`)) {
+        items.splice(index, 1);
+        saveData();
+      }
+    }
+
+    // 初期表示
+    render();
+  </script>
+</body>
+</html>
